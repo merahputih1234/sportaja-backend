@@ -25,7 +25,7 @@ export default function PesananPage() {
     fetchBookings();
   }, []);
 
-  // 🌟 FUNGSI BARU: Mengubah status menjadi Lunas
+  // Fungsi: Mengubah status menjadi Lunas
   const handleMarkAsPaid = async (bookingId: number, bookingCode: string) => {
     if (!window.confirm(`Apakah Anda yakin ingin menandai pesanan ${bookingCode} sebagai LUNAS?`)) return;
 
@@ -39,9 +39,36 @@ export default function PesananPage() {
 
       if (res.ok) {
         alert("Sukses! Pesanan telah ditandai Lunas.");
-        fetchBookings(); // Refresh data otomatis
+        fetchBookings(); 
       } else {
         alert("Gagal menandai pesanan.");
+      }
+    } catch (error) {
+      alert("Terjadi kesalahan jaringan.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // 🌟 FUNGSI BARU: Membatalkan Pesanan
+  const handleCancelBooking = async (bookingId: number, bookingCode: string) => {
+    if (!window.confirm(`Yakin ingin MEMBATALKAN pesanan ${bookingCode}?\nJika sudah Lunas, saldo akan otomatis dikembalikan ke Dompet pengguna.`)) return;
+
+    try {
+      setIsProcessing(true);
+      const res = await fetch('/api/bookings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        // Mengirimkan action 'cancel' ke API yang sudah kita buat sebelumnya
+        body: JSON.stringify({ booking_id: bookingId, action: 'cancel' })
+      });
+
+      if (res.ok) {
+        alert("Pesanan berhasil dibatalkan!");
+        fetchBookings(); 
+      } else {
+        const data = await res.json();
+        alert(`Gagal membatalkan: ${data.error || 'Terjadi kesalahan'}`);
       }
     } catch (error) {
       alert("Terjadi kesalahan jaringan.");
@@ -59,7 +86,7 @@ export default function PesananPage() {
       <div className="max-w-7xl mx-auto">
         
         {/* HEADER */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Daftar Pesanan</h1>
             <p className="text-gray-500 mt-1">Pantau transaksi dan kelola status pembayaran lapangan</p>
@@ -70,8 +97,8 @@ export default function PesananPage() {
         </div>
 
         {/* TABEL PESANAN */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full text-left border-collapse">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="p-4 text-sm font-semibold text-gray-600">Kode Booking</th>
@@ -120,25 +147,37 @@ export default function PesananPage() {
                     </td>
 
                     <td className="p-4">
-                      <div className="font-bold text-gray-800 text-base">{formatRupiah(b.total_payment)}</div>
+                      <div className="font-bold text-gray-800 text-base mb-1">{formatRupiah(b.total_payment)}</div>
                       
-                      {/* STATUS DAN TOMBOL AKSI */}
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className={`text-sm font-bold ${
-                          b.status === 'Lunas' ? 'text-emerald-500' : 
-                          b.status === 'Dibatalkan' ? 'text-red-500' : 'text-amber-500'
-                        }`}>
-                          {b.status || 'Pending'}
-                        </span>
+                      {/* STATUS TEXT */}
+                      <span className={`text-sm font-bold block mb-2 ${
+                        b.status === 'Lunas' ? 'text-emerald-500' : 
+                        b.status === 'Dibatalkan' ? 'text-red-500' : 'text-amber-500'
+                      }`}>
+                        {b.status || 'Pending'}
+                      </span>
 
-                        {/* Munculkan tombol Lunas HANYA jika statusnya Pending */}
+                      {/* TOMBOL AKSI */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Tombol Lunas (Hanya muncul jika Pending) */}
                         {(b.status === 'Pending' || !b.status) && (
                           <button
                             onClick={() => handleMarkAsPaid(b.id, b.booking_code)}
                             disabled={isProcessing}
-                            className="bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-200 text-xs px-2 py-0.5 rounded transition-colors font-semibold"
+                            className="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-2 py-1 rounded transition-colors text-xs font-bold shadow-sm"
                           >
                             ✅ Set Lunas
+                          </button>
+                        )}
+
+                        {/* 🌟 TOMBOL BATAL (Muncul selama statusnya belum Dibatalkan) */}
+                        {b.status !== 'Dibatalkan' && (
+                          <button
+                            onClick={() => handleCancelBooking(b.id, b.booking_code)}
+                            disabled={isProcessing}
+                            className="bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded transition-colors text-xs font-bold shadow-sm"
+                          >
+                            ❌ Batalkan
                           </button>
                         )}
                       </div>

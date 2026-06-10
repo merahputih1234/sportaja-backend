@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-// Definisikan struktur data lapangan agar tidak error saat build
 interface Venue {
   id: number;
   name: string;
@@ -18,24 +17,20 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fungsi untuk mengambil data dari API Next.js secara dinamis
+  // State untuk fitur Edit
+  const [editingVenue, setEditingVenue] = useState<Venue | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Fungsi Ambil Data
   const fetchVenues = async () => {
     try {
       setIsLoading(true);
-      // Menggunakan relative path '/api/venues' agar otomatis menyesuaikan domain Vercel
-      const res = await fetch('/api/venues', {
-        cache: 'no-store' // Memastikan data selalu segar/baru dari database
-      });
-      
-      if (!res.ok) {
-        throw new Error(`Gagal memuat data (Status: ${res.status})`);
-      }
-      
+      const res = await fetch('/api/venues', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Gagal memuat data`);
       const data = await res.json();
       setVenues(data);
     } catch (err: any) {
-      console.error("Error fetching venues:", err);
-      setError(err.message || "Terjadi kesalahan saat mengambil data.");
+      setError(err.message || "Terjadi kesalahan.");
     } finally {
       setIsLoading(false);
     }
@@ -45,24 +40,127 @@ export default function Dashboard() {
     fetchVenues();
   }, []);
 
-  // Fungsi pembantu untuk memformat nominal angka ke Rupiah
-  const formatRupiah = (priceStr: string) => {
-    const numericPrice = parseInt(priceStr.substringBefore("."));
-    const cleanPrice = isNaN(numericPrice) ? parseFloat(priceStr) || 0 : numericPrice;
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(cleanPrice);
+  // 🔴 Fungsi Hapus Data
+  const handleDelete = async (id: number, name: string) => {
+    const isConfirmed = window.confirm(`Apakah Anda yakin ingin menghapus lapangan "${name}" secara permanen?`);
+    if (!isConfirmed) return;
+
+    try {
+      const res = await fetch('/api/venues', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+
+      if (res.ok) {
+        alert("Data berhasil dihapus!");
+        fetchVenues(); // Refresh tabel setelah dihapus
+      } else {
+        alert("Gagal menghapus data.");
+      }
+    } catch (error) {
+      alert("Terjadi kesalahan jaringan.");
+    }
   };
 
-  // Ekstensi helper sederhana untuk menyamakan split logika
-  String.prototype.substringBefore = function(delimiter: string) {
-    const index = this.indexOf(delimiter);
-    return index === -1 ? this.toString() : this.substring(0, index);
+  // 🟡 Fungsi Simpan Hasil Edit
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVenue) return;
+
+    try {
+      setIsSaving(true);
+      const res = await fetch('/api/venues', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingVenue),
+      });
+
+      if (res.ok) {
+        alert("Data berhasil diperbarui!");
+        setEditingVenue(null); // Tutup modal edit
+        fetchVenues(); // Refresh tabel
+      } else {
+        alert("Gagal memperbarui data.");
+      }
+    } catch (error) {
+      alert("Terjadi kesalahan saat menyimpan.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Helper Format Rupiah
+  const formatRupiah = (priceStr: string) => {
+    if (!priceStr) return "Rp 0";
+    const numericPrice = parseInt(String(priceStr).split(".")[0]);
+    const cleanPrice = isNaN(numericPrice) ? 0 : numericPrice;
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(cleanPrice);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
+      
+      {/* 🟡 MODAL EDIT LAPANGAN (Muncul jika tombol Edit diklik) */}
+      {editingVenue && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="bg-amber-500 p-4 text-white font-bold text-lg">Edit Lapangan</div>
+            <form onSubmit={handleUpdate} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nama GOR/Lapangan</label>
+                <input 
+                  type="text" required 
+                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-amber-500 outline-none text-black"
+                  value={editingVenue.name} 
+                  onChange={(e) => setEditingVenue({...editingVenue, name: e.target.value})} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+                <select 
+                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-amber-500 outline-none text-black"
+                  value={editingVenue.category} 
+                  onChange={(e) => setEditingVenue({...editingVenue, category: e.target.value})}
+                >
+                  <option value="Futsal">Futsal</option>
+                  <option value="Basket">Basket</option>
+                  <option value="Bulu Tangkis">Bulu Tangkis</option>
+                  <option value="Tenis">Tenis</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Harga / Jam (Tanpa titik)</label>
+                <input 
+                  type="number" required 
+                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-amber-500 outline-none text-black"
+                  value={editingVenue.price_per_hour} 
+                  onChange={(e) => setEditingVenue({...editingVenue, price_per_hour: e.target.value})} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Alamat Lengkap</label>
+                <textarea 
+                  required rows={2}
+                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-amber-500 outline-none text-black"
+                  value={editingVenue.address} 
+                  onChange={(e) => setEditingVenue({...editingVenue, address: e.target.value})} 
+                ></textarea>
+              </div>
+              
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+                <button type="button" onClick={() => setEditingVenue(null)} className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition">Batal</button>
+                <button type="submit" disabled={isSaving} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold transition disabled:opacity-50">
+                  {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DASHBOARD UTAMA */}
       <div className="max-w-7xl mx-auto">
-        
-        {/* TOP BAR / HEADER DASHBOARD */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Dashboard SportAja</h1>
@@ -81,7 +179,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* UTAMA: TABEL DATA LAPANGAN */}
+        {/* TABEL DATA LAPANGAN */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -95,28 +193,14 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="p-12 text-center text-gray-400">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                    <div>Menghubungkan ke database cloud...</div>
-                  </td>
-                </tr>
+                <tr><td colSpan={5} className="p-12 text-center text-gray-400">Memuat data...</td></tr>
               ) : error ? (
-                <tr>
-                  <td colSpan={5} className="p-8 text-center text-red-500 bg-red-50">
-                    ⚠️ Error: {error}. Periksa kembali Environment Variables di Vercel atau SSL Aiven Anda.
-                  </td>
-                </tr>
+                <tr><td colSpan={5} className="p-8 text-center text-red-500 bg-red-50">{error}</td></tr>
               ) : venues.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="p-12 text-center text-gray-500">
-                    Belum ada data lapangan di database online Aiven. Silakan tambahkan lewat form atau Workbench.
-                  </td>
-                </tr>
+                <tr><td colSpan={5} className="p-12 text-center text-gray-500">Belum ada data lapangan.</td></tr>
               ) : (
                 venues.map((venue) => (
                   <tr key={venue.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    {/* KOLOM GAMBAR */}
                     <td className="p-4">
                       <div className="w-16 h-16 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden">
                         {venue.image_url ? (
@@ -126,36 +210,28 @@ export default function Dashboard() {
                         )}
                       </div>
                     </td>
-                    
-                    {/* KOLOM NAMA & ALAMAT */}
                     <td className="p-4">
                       <div className="font-bold text-gray-800 text-base">{venue.name}</div>
                       <div className="text-xs text-gray-400 truncate max-w-xs md:max-w-md">{venue.address}</div>
                     </td>
-                    
-                    {/* KOLOM KATEGORI */}
                     <td className="p-4">
                       <span className="bg-blue-50 text-blue-700 text-xs px-2.5 py-1 rounded-full font-semibold border border-blue-100">
                         {venue.category}
                       </span>
                     </td>
-                    
-                    {/* KOLOM HARGA */}
                     <td className="p-4 font-bold text-gray-700">
                       {formatRupiah(venue.price_per_hour)}
                     </td>
-                    
-                    {/* KOLOM AKSI EDIT/HAPUS */}
                     <td className="p-4 text-center">
                       <div className="flex justify-center gap-2">
                         <button 
-                          onClick={() => alert(`Fitur Edit untuk ${venue.name} sedang dikembangkan.`)}
+                          onClick={() => setEditingVenue(venue)}
                           className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-sm transition-colors"
                         >
                           Edit
                         </button>
                         <button 
-                          onClick={() => alert(`Fitur Hapus untuk ${venue.name} sedang dikembangkan.`)}
+                          onClick={() => handleDelete(venue.id, venue.name)}
                           className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-sm transition-colors"
                         >
                           Hapus
@@ -172,11 +248,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-}
-
-// Deklarasi global scope interface agar tidak error tipe data string
-declare global {
-  interface String {
-    substringBefore(delimiter: string): string;
-  }
 }

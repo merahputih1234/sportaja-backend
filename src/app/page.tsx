@@ -17,11 +17,9 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // State Edit Lapangan
   const [editingVenue, setEditingVenue] = useState<Venue | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // 🌟 STATE BARU: Tambah Lapangan
   const [isAddingVenue, setIsAddingVenue] = useState(false);
   const [newVenue, setNewVenue] = useState({
     name: '',
@@ -60,11 +58,13 @@ export default function Dashboard() {
         body: JSON.stringify({ id }),
       });
 
+      const data = await res.json().catch(() => null);
+
       if (res.ok) {
         alert("Data berhasil dihapus!");
         fetchVenues(); 
       } else {
-        alert("Gagal menghapus data.");
+        alert(`Gagal menghapus data: ${data?.error || 'Terjadi kesalahan sistem'}`);
       }
     } catch (error) {
       alert("Terjadi kesalahan jaringan.");
@@ -83,12 +83,14 @@ export default function Dashboard() {
         body: JSON.stringify(editingVenue),
       });
 
+      const data = await res.json().catch(() => null);
+
       if (res.ok) {
         alert("Data berhasil diperbarui!");
         setEditingVenue(null); 
         fetchVenues(); 
       } else {
-        alert("Gagal memperbarui data.");
+        alert(`Gagal memperbarui: ${data?.error || 'Terjadi kesalahan sistem'}`);
       }
     } catch (error) {
       alert("Terjadi kesalahan saat menyimpan.");
@@ -97,7 +99,6 @@ export default function Dashboard() {
     }
   };
 
-  // 🌟 FUNGSI BARU: Kirim Data Tambah Lapangan
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -109,13 +110,16 @@ export default function Dashboard() {
         body: JSON.stringify(newVenue),
       });
 
+      const data = await res.json().catch(() => null);
+
       if (res.ok) {
         alert("Lapangan baru berhasil ditambahkan!");
-        setIsAddingVenue(false); // Tutup modal
-        setNewVenue({ name: '', category: 'Futsal', address: '', price_per_hour: '', image_url: '' }); // Kosongkan form
-        fetchVenues(); // Refresh tabel
+        setIsAddingVenue(false); 
+        setNewVenue({ name: '', category: 'Futsal', address: '', price_per_hour: '', image_url: '' }); 
+        fetchVenues(); 
       } else {
-        alert("Gagal menambahkan data lapangan.");
+        // 🔥 FITUR ERROR CATCHER: Jika link kepanjangan, Aiven akan jujur di sini!
+        alert(`Gagal menambahkan: ${data?.error || 'Terjadi kesalahan sistem'}`);
       }
     } catch (error) {
       alert("Terjadi kesalahan jaringan saat menyimpan.");
@@ -160,7 +164,7 @@ export default function Dashboard() {
                   value={newVenue.image_url} 
                   onChange={(e) => setNewVenue({...newVenue, image_url: e.target.value})} 
                 />
-                <p className="text-xs text-gray-400 mt-1">Kosongkan jika belum ada gambar.</p>
+                <p className="text-xs text-gray-400 mt-1">Kosongkan saja dulu jika ingin mencoba. Harus format URL asli (.jpg/.png).</p>
               </div>
 
               <div>
@@ -208,7 +212,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 🟡 MODAL EDIT LAPANGAN (TETAP ADA) */}
+      {/* 🟡 MODAL EDIT LAPANGAN */}
       {editingVenue && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto">
@@ -295,7 +299,6 @@ export default function Dashboard() {
               🧾 Lihat Pesanan
             </Link>
             
-            {/* 🌟 PERUBAHAN: Tombol Tambah Lapangan sekarang memicu modal muncul */}
             <button 
               onClick={() => setIsAddingVenue(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2"

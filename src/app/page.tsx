@@ -112,7 +112,6 @@ export default function Dashboard() {
                 />
               </div>
               
-              {/* 🌟 TAMBAHAN: Input URL Gambar Lapangan */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">URL Gambar Lapangan</label>
                 <input 
@@ -176,9 +175,12 @@ export default function Dashboard() {
             <p className="text-gray-500 mt-1">Manajemen Lapangan Olahraga</p>
           </div>
           <div className="flex gap-3">
-            <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2">
+            
+            {/* 🌟 PERBAIKAN: Tombol ini sekarang sudah menjadi <Link> dan mengarah ke /pengguna */}
+            <Link href="/pengguna" className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2">
               👥 Kelola Pengguna
-            </button>
+            </Link>
+
             <Link href="/pesanan" className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2">
               🧾 Lihat Pesanan
             </Link>

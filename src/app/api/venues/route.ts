@@ -29,13 +29,15 @@ export async function DELETE(request: Request) {
 export async function PUT(request: Request) {
   try {
     const data = await request.json();
-    const { id, name, category, address, price_per_hour } = data;
+    // 🌟 TAMBAHAN: Memasukkan image_url
+    const { id, name, category, address, price_per_hour, image_url } = data;
 
     if (!id) return NextResponse.json({ error: 'ID tidak valid' }, { status: 400 });
 
+    // 🌟 TAMBAHAN: Update image_url ke database
     await pool.query(
-      'UPDATE venues SET name = ?, category = ?, address = ?, price_per_hour = ? WHERE id = ?',
-      [name, category, address, price_per_hour, id]
+      'UPDATE venues SET name = ?, category = ?, address = ?, price_per_hour = ?, image_url = ? WHERE id = ?',
+      [name, category, address, price_per_hour, image_url, id]
     );
 
     return NextResponse.json({ message: 'Lapangan berhasil diperbarui!' }, { status: 200 });

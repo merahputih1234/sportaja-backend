@@ -17,11 +17,9 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // State untuk fitur Edit
   const [editingVenue, setEditingVenue] = useState<Venue | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Fungsi Ambil Data
   const fetchVenues = async () => {
     try {
       setIsLoading(true);
@@ -40,7 +38,6 @@ export default function Dashboard() {
     fetchVenues();
   }, []);
 
-  // 🔴 Fungsi Hapus Data
   const handleDelete = async (id: number, name: string) => {
     const isConfirmed = window.confirm(`Apakah Anda yakin ingin menghapus lapangan "${name}" secara permanen?`);
     if (!isConfirmed) return;
@@ -54,7 +51,7 @@ export default function Dashboard() {
 
       if (res.ok) {
         alert("Data berhasil dihapus!");
-        fetchVenues(); // Refresh tabel setelah dihapus
+        fetchVenues(); 
       } else {
         alert("Gagal menghapus data.");
       }
@@ -63,7 +60,6 @@ export default function Dashboard() {
     }
   };
 
-  // 🟡 Fungsi Simpan Hasil Edit
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingVenue) return;
@@ -78,8 +74,8 @@ export default function Dashboard() {
 
       if (res.ok) {
         alert("Data berhasil diperbarui!");
-        setEditingVenue(null); // Tutup modal edit
-        fetchVenues(); // Refresh tabel
+        setEditingVenue(null); 
+        fetchVenues(); 
       } else {
         alert("Gagal memperbarui data.");
       }
@@ -90,7 +86,6 @@ export default function Dashboard() {
     }
   };
 
-  // Helper Format Rupiah
   const formatRupiah = (priceStr: string) => {
     if (!priceStr) return "Rp 0";
     const numericPrice = parseInt(String(priceStr).split(".")[0]);
@@ -101,11 +96,11 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       
-      {/* 🟡 MODAL EDIT LAPANGAN (Muncul jika tombol Edit diklik) */}
+      {/* 🟡 MODAL EDIT LAPANGAN */}
       {editingVenue && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="bg-amber-500 p-4 text-white font-bold text-lg">Edit Lapangan</div>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="bg-amber-500 p-4 text-white font-bold text-lg sticky top-0">Edit Lapangan</div>
             <form onSubmit={handleUpdate} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nama GOR/Lapangan</label>
@@ -116,6 +111,20 @@ export default function Dashboard() {
                   onChange={(e) => setEditingVenue({...editingVenue, name: e.target.value})} 
                 />
               </div>
+              
+              {/* 🌟 TAMBAHAN: Input URL Gambar Lapangan */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">URL Gambar Lapangan</label>
+                <input 
+                  type="text" 
+                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-amber-500 outline-none text-black text-sm"
+                  placeholder="https://contoh.com/gambar.jpg"
+                  value={editingVenue.image_url || ''} 
+                  onChange={(e) => setEditingVenue({...editingVenue, image_url: e.target.value})} 
+                />
+                <p className="text-xs text-gray-400 mt-1">Kosongkan jika tidak ada gambar.</p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
                 <select 
@@ -248,4 +257,10 @@ export default function Dashboard() {
       </div>
     </div>
   );
+}
+
+declare global {
+  interface String {
+    substringBefore(delimiter: string): string;
+  }
 }

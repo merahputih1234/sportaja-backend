@@ -25,7 +25,7 @@ export default function PesananPage() {
     fetchBookings();
   }, []);
 
-  // Fungsi: Mengubah status menjadi Lunas
+  // 🌟 FUNGSI SET LUNAS (Dengan Error Catcher)
   const handleMarkAsPaid = async (bookingId: number, bookingCode: string) => {
     if (!window.confirm(`Apakah Anda yakin ingin menandai pesanan ${bookingCode} sebagai LUNAS?`)) return;
 
@@ -37,20 +37,24 @@ export default function PesananPage() {
         body: JSON.stringify({ booking_id: bookingId, action: 'mark_paid' })
       });
 
+      // Menangkap pesan aslinya dari database/API
+      const data = await res.json().catch(() => null);
+
       if (res.ok) {
         alert("Sukses! Pesanan telah ditandai Lunas.");
         fetchBookings(); 
       } else {
-        alert("Gagal menandai pesanan.");
+        // Ini akan memunculkan error aslinya ke layarmu!
+        alert(`Gagal: ${data?.error || res.statusText || 'Terjadi kesalahan sistem'}`);
       }
-    } catch (error) {
-      alert("Terjadi kesalahan jaringan.");
+    } catch (error: any) {
+      alert(`Terjadi kesalahan jaringan: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // 🌟 FUNGSI BARU: Membatalkan Pesanan
+  // 🌟 FUNGSI BATALKAN (Dengan Error Catcher)
   const handleCancelBooking = async (bookingId: number, bookingCode: string) => {
     if (!window.confirm(`Yakin ingin MEMBATALKAN pesanan ${bookingCode}?\nJika sudah Lunas, saldo akan otomatis dikembalikan ke Dompet pengguna.`)) return;
 
@@ -59,19 +63,19 @@ export default function PesananPage() {
       const res = await fetch('/api/bookings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        // Mengirimkan action 'cancel' ke API yang sudah kita buat sebelumnya
         body: JSON.stringify({ booking_id: bookingId, action: 'cancel' })
       });
+
+      const data = await res.json().catch(() => null);
 
       if (res.ok) {
         alert("Pesanan berhasil dibatalkan!");
         fetchBookings(); 
       } else {
-        const data = await res.json();
-        alert(`Gagal membatalkan: ${data.error || 'Terjadi kesalahan'}`);
+        alert(`Gagal membatalkan: ${data?.error || res.statusText || 'Terjadi kesalahan sistem'}`);
       }
-    } catch (error) {
-      alert("Terjadi kesalahan jaringan.");
+    } catch (error: any) {
+      alert(`Terjadi kesalahan jaringan: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -85,7 +89,6 @@ export default function PesananPage() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
         
-        {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Daftar Pesanan</h1>
@@ -96,7 +99,6 @@ export default function PesananPage() {
           </Link>
         </div>
 
-        {/* TABEL PESANAN */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
@@ -125,41 +127,31 @@ export default function PesananPage() {
               ) : (
                 bookings.map((b: any) => (
                   <tr key={b.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    
                     <td className="p-4">
                       <span className="bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-full text-sm">
                         {b.booking_code}
                       </span>
                     </td>
-                    
                     <td className="p-4">
                       <div className="font-bold text-gray-800 text-base">{b.user_name}</div>
                       <div className="text-xs text-gray-500 mt-0.5">{b.venue_name}</div>
                     </td>
-                    
                     <td className="p-4">
                       <div className="text-sm text-gray-600">{b.booking_date}</div>
                       <div className="font-bold text-blue-600 mt-0.5">{b.booking_time} WIB</div>
                     </td>
-
                     <td className="p-4">
                       <div className="text-sm font-medium text-gray-700">{b.payment_method}</div>
                     </td>
-
                     <td className="p-4">
                       <div className="font-bold text-gray-800 text-base mb-1">{formatRupiah(b.total_payment)}</div>
-                      
-                      {/* STATUS TEXT */}
                       <span className={`text-sm font-bold block mb-2 ${
                         b.status === 'Lunas' ? 'text-emerald-500' : 
                         b.status === 'Dibatalkan' ? 'text-red-500' : 'text-amber-500'
                       }`}>
                         {b.status || 'Pending'}
                       </span>
-
-                      {/* TOMBOL AKSI */}
                       <div className="flex flex-wrap items-center gap-2">
-                        {/* Tombol Lunas (Hanya muncul jika Pending) */}
                         {(b.status === 'Pending' || !b.status) && (
                           <button
                             onClick={() => handleMarkAsPaid(b.id, b.booking_code)}
@@ -169,8 +161,6 @@ export default function PesananPage() {
                             ✅ Set Lunas
                           </button>
                         )}
-
-                        {/* 🌟 TOMBOL BATAL (Muncul selama statusnya belum Dibatalkan) */}
                         {b.status !== 'Dibatalkan' && (
                           <button
                             onClick={() => handleCancelBooking(b.id, b.booking_code)}
@@ -182,14 +172,12 @@ export default function PesananPage() {
                         )}
                       </div>
                     </td>
-                    
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
-
       </div>
     </div>
   );

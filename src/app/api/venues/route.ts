@@ -29,12 +29,10 @@ export async function DELETE(request: Request) {
 export async function PUT(request: Request) {
   try {
     const data = await request.json();
-    // 🌟 TAMBAHAN: Memasukkan image_url
     const { id, name, category, address, price_per_hour, image_url } = data;
 
     if (!id) return NextResponse.json({ error: 'ID tidak valid' }, { status: 400 });
 
-    // 🌟 TAMBAHAN: Update image_url ke database
     await pool.query(
       'UPDATE venues SET name = ?, category = ?, address = ?, price_per_hour = ?, image_url = ? WHERE id = ?',
       [name, category, address, price_per_hour, image_url, id]
@@ -44,5 +42,28 @@ export async function PUT(request: Request) {
   } catch (error) {
     console.error("Gagal edit:", error);
     return NextResponse.json({ error: 'Gagal memperbarui data' }, { status: 500 });
+  }
+}
+
+// 🌟 4. FUNGSI POST BARU (MENAMBAH DATA)
+export async function POST(request: Request) {
+  try {
+    const data = await request.json();
+    const { name, category, address, price_per_hour, image_url } = data;
+
+    // Validasi sederhana
+    if (!name || !category || !address || !price_per_hour) {
+      return NextResponse.json({ error: 'Mohon lengkapi semua data wajib' }, { status: 400 });
+    }
+
+    await pool.query(
+      'INSERT INTO venues (name, category, address, price_per_hour, image_url) VALUES (?, ?, ?, ?, ?)',
+      [name, category, address, price_per_hour, image_url || null]
+    );
+
+    return NextResponse.json({ message: 'Lapangan berhasil ditambahkan!' }, { status: 201 });
+  } catch (error) {
+    console.error("Gagal tambah:", error);
+    return NextResponse.json({ error: 'Gagal menambahkan data lapangan' }, { status: 500 });
   }
 }

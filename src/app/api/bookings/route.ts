@@ -28,7 +28,6 @@ export async function POST(request: Request) {
       [user_id, venue_id, booking_date, booking_time, total_payment, payment_method, booking_code, status_awal]
     );
 
-    // 🌟 TAMBAHAN: Catat uang keluar ke Tabel Transaksi
     await connection.query(
       'INSERT INTO transactions (user_id, title, amount, type) VALUES (?, ?, ?, ?)', 
       [user_id, `Pembayaran Lapangan (${payment_method})`, total_payment, 'OUT']
@@ -45,13 +44,12 @@ export async function POST(request: Request) {
   }
 }
 
-// ==== FUNGSI GET (Biarkan isinya persis seperti kode lamamu) ====
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     let query = `
-      SELECT b.id, b.booking_code, v.name as venue_name, DATE_FORMAT(b.booking_date, '%Y-%m-%d') as booking_date, 
+      SELECT b.id, b.booking_code, v.name as venue_name, DATE_FORMAT(b.booking_date, '%d %b %Y') as booking_date, 
              b.booking_time, b.total_payment, b.payment_method, b.status, u.phone as user_phone, u.name as user_name 
       FROM bookings b JOIN venues v ON b.venue_id = v.id JOIN users u ON b.user_id = u.id
     `;
@@ -65,24 +63,41 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { booking_id } = await request.json();
+    const body = await request.json();
+    const { booking_id, action } = body; 
+    
     const [bookingRows]: any = await pool.query('SELECT * FROM bookings WHERE id = ?', [booking_id]);
     const booking = bookingRows[0];
     
     if (!booking) return NextResponse.json({ error: 'Pesanan tidak ditemukan' }, { status: 404 });
-    if (booking.status === 'Dibatalkan') return NextResponse.json({ error: 'Sudah dibatalkan sebelumnya' }, { status: 400 });
 
-    await pool.query('UPDATE users SET balance = balance + ? WHERE id = ?', [booking.total_payment, booking.user_id]);
-    await pool.query('UPDATE bookings SET status = "Dibatalkan" WHERE id = ?', [booking_id]);
+    // 🌟 FITUR BARU: Admin menandai pesanan menjadi Lunas
+    if (action === 'mark_paid') {
+      if (booking.status === 'Lunas') return NextResponse.json({ error: 'Sudah lunas' }, { status: 400 });
+      await pool.query('UPDATE bookings SET status = "Lunas" WHERE id = ?', [booking_id]);
+      return NextResponse.json({ message: 'Pesanan berhasil ditandai Lunas!' }, { status: 200 });
+    }
 
-    // 🌟 TAMBAHAN: Catat Refund masuk ke Tabel Transaksi
-    await pool.query(
-      'INSERT INTO transactions (user_id, title, amount, type) VALUES (?, ?, ?, ?)', 
-      [booking.user_id, `Refund - Batal Pesan (${booking.booking_code})`, booking.total_payment, 'IN']
-    );
+    // FITUR LAMA: Batal Pesanan (Bisa dari Android / Admin)
+    // Otomatis jalan jika action tidak dikirimkan (karena Android tidak mengirim 'action')
+    if (!action || action === 'cancel') {
+      if (booking.status === 'Dibatalkan') return NextResponse.json({ error: 'Sudah dibatalkan sebelumnya' }, { status: 400 });
 
-    return NextResponse.json({ message: 'Pesanan dibatalkan & dana dikembalikan ke SportAja Pay' }, { status: 200 });
+      // Hanya kembalikan dana ke SportAja Pay jika status pesanan sebelumnya sudah Lunas
+      if (booking.status === 'Lunas') {
+        await pool.query('UPDATE users SET balance = balance + ? WHERE id = ?', [booking.total_payment, booking.user_id]);
+        await pool.query(
+          'INSERT INTO transactions (user_id, title, amount, type) VALUES (?, ?, ?, ?)', 
+          [booking.user_id, `Refund - Batal Pesan (${booking.booking_code})`, booking.total_payment, 'IN']
+        );
+      }
+
+      await pool.query('UPDATE bookings SET status = "Dibatalkan" WHERE id = ?', [booking_id]);
+      return NextResponse.json({ message: 'Pesanan dibatalkan & dana ditangani.' }, { status: 200 });
+    }
+
+    return NextResponse.json({ error: 'Perintah tidak valid' }, { status: 400 });
   } catch (error) {
-    return NextResponse.json({ error: 'Gagal membatalkan pesanan' }, { status: 500 });
+    return NextResponse.json({ error: 'Gagal memproses pesanan' }, { status: 500 });
   }
 }

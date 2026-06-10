@@ -71,19 +71,20 @@ export async function PUT(request: Request) {
     
     if (!booking) return NextResponse.json({ error: 'Pesanan tidak ditemukan' }, { status: 404 });
 
-    // 🌟 FITUR BARU: Admin menandai pesanan menjadi Lunas
+    // 🌟 FITUR SET LUNAS
     if (action === 'mark_paid') {
       if (booking.status === 'Lunas') return NextResponse.json({ error: 'Sudah lunas' }, { status: 400 });
-      await pool.query('UPDATE bookings SET status = "Lunas" WHERE id = ?', [booking_id]);
+      
+      // 🔥 PERBAIKAN: Menggunakan Parameter (Tanda Tanya ?) agar aman dari aturan ANSI_QUOTES Aiven
+      await pool.query('UPDATE bookings SET status = ? WHERE id = ?', ['Lunas', booking_id]);
+      
       return NextResponse.json({ message: 'Pesanan berhasil ditandai Lunas!' }, { status: 200 });
     }
 
-    // FITUR LAMA: Batal Pesanan (Bisa dari Android / Admin)
-    // Otomatis jalan jika action tidak dikirimkan (karena Android tidak mengirim 'action')
+    // 🌟 FITUR BATALKAN
     if (!action || action === 'cancel') {
       if (booking.status === 'Dibatalkan') return NextResponse.json({ error: 'Sudah dibatalkan sebelumnya' }, { status: 400 });
 
-      // Hanya kembalikan dana ke SportAja Pay jika status pesanan sebelumnya sudah Lunas
       if (booking.status === 'Lunas') {
         await pool.query('UPDATE users SET balance = balance + ? WHERE id = ?', [booking.total_payment, booking.user_id]);
         await pool.query(
@@ -92,12 +93,16 @@ export async function PUT(request: Request) {
         );
       }
 
-      await pool.query('UPDATE bookings SET status = "Dibatalkan" WHERE id = ?', [booking_id]);
+      // 🔥 PERBAIKAN: Menggunakan Parameter (Tanda Tanya ?)
+      await pool.query('UPDATE bookings SET status = ? WHERE id = ?', ['Dibatalkan', booking_id]);
+      
       return NextResponse.json({ message: 'Pesanan dibatalkan & dana ditangani.' }, { status: 200 });
     }
 
     return NextResponse.json({ error: 'Perintah tidak valid' }, { status: 400 });
-  } catch (error) {
-    return NextResponse.json({ error: 'Gagal memproses pesanan' }, { status: 500 });
+  } catch (error: any) {
+    console.error("PUT Error:", error);
+    // 🌟 BUKA TOPENG ERROR: Menampilkan pesan asli dari database jika gagal
+    return NextResponse.json({ error: `Backend Error: ${error.message}` }, { status: 500 });
   }
 }
